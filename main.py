@@ -1,17 +1,26 @@
 import sqlite3
 import sys
-
 from PyQt5 import uic
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QMainWindow, QTableWidgetItem
+
+COLUMS = ['id', 'name',
+    'bake_state', 'is_milled',
+    'discription', 'price',
+    'package']
 
 
 class DBSample(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.main_window()
+
+    def main_window(self):
         uic.loadUi('main.ui', self)
         self.connection = sqlite3.connect("coffee.sqlite")
         self.select_data()
+        self.change_chosen_btn.clicked.connect(self.change_data_window)
+        self.new_line_btn.clicked.connect(self.new_line)
 
     def select_data(self):
         res = self.connection.cursor().execute("SELECT * FROM coffee_list").fetchall()
@@ -26,6 +35,38 @@ class DBSample(QMainWindow):
 
     def closeEvent(self, event):
         self.connection.close()
+
+    def new_line(self):
+        self.connection.cursor().execute(
+            "INSERT INTO coffee_list VALUES (0, '', 0, 0, '', 0, 0)"
+            )
+        self.connection.commit()
+        self.select_data()
+
+    def change_data_window(self):
+        self.connection = sqlite3.connect("coffee.sqlite")
+        data = self.tableWidget.selectedItems()[0].text()
+        self.ind = self.tableWidget.selectedIndexes()[0]
+        uic.loadUi('addEditCoffeeForm.ui', self)
+        self.save.clicked.connect(self.save_to_db)
+        self.new_data.setPlainText(str(data))
+
+    def save_to_db(self):
+        changed_data = self.new_data.toPlainText()
+        column, row = COLUMS[self.ind.column()], self.ind.row()
+
+        if self.ind.column() in [1, 4]:
+            self.connection.cursor().execute(
+                f"UPDATE coffee_list set {column} = '{changed_data}' WHERE id = {row}"
+                )
+        else:
+            self.connection.cursor().execute(
+                f"UPDATE coffee_list set {column} = {changed_data} WHERE id = {row}"
+                )
+
+        self.connection.commit()
+        self.connection.close()
+        self.main_window()
 
 
 if __name__ == '__main__':
